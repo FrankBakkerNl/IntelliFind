@@ -1,16 +1,16 @@
 ﻿using System;
 using System.Collections;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using ScriptWrapper;
 using TestVisx;
+using Task = System.Threading.Tasks.Task;
 
 namespace IntelliFind
 {
@@ -28,12 +28,21 @@ namespace IntelliFind
             this.InitializeComponent();
         }
 
-        /// <summary>
-        /// Handles click on the button by displaying a message box.
-        /// </summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event args.</param>
         private async void SearchButton_Click(object sender, RoutedEventArgs e)
+        {
+            await ExecuteSearch();
+        }
+        private async void TextBoxInput_KeyUp(object sender, KeyEventArgs e)
+        {
+            // Handle Ctr+Enter for Search
+            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                e.Handled = true;
+                await ExecuteSearch();
+            }
+        }
+
+        private async Task ExecuteSearch()
         {
             object scriptResult;
             try
@@ -68,7 +77,7 @@ namespace IntelliFind
                 var lineSpan = syntaxNodeorToken.Value.GetLocation().GetLineSpan();
                 var listviewItem = new ListViewItem
                 {
-                    Content = $"{FormatFileLinePositionSpan(lineSpan)}: {syntaxNodeorToken.Value.Kind()} {Truncate(syntaxNodeorToken.ToString(), 20)})",
+                    Content = $"{lineSpan}: {syntaxNodeorToken.Value.Kind()} {Truncate(syntaxNodeorToken.ToString())}",
                     ToolTip = syntaxNodeorToken.ToString(),
                 };
 
@@ -92,17 +101,12 @@ namespace IntelliFind
             return item as SyntaxNodeOrToken?;
         }
 
-        private static string FormatFileLinePositionSpan(FileLinePositionSpan lineSpan)
-        {
-            return $"{lineSpan.Path} ({lineSpan.StartLinePosition.Line}, {lineSpan.StartLinePosition.Character})";
-        }
 
-
-        public static string Truncate(string value, int maxLength)
+        public static string Truncate(string value)
         {
             if (string.IsNullOrEmpty(value)) { return value; }
 
-            return value.Substring(0, Math.Min(value.Length, maxLength)).Replace("\n", string.Empty).Replace("\r", string.Empty);
+            return value.Substring(0, Math.Min(value.Length, 30)).Replace("\n", string.Empty).Replace("\r", string.Empty);
         }
 
 
@@ -120,8 +124,6 @@ namespace IntelliFind
             }
         }
 
-        private static readonly IServiceProvider ServiceProvider = Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider;
-
         private void SelectSpanInCodeWindow(FileLinePositionSpan span)
         {
             // If the path is not avalable we cannot jump to it
@@ -131,9 +133,9 @@ namespace IntelliFind
             IVsUIHierarchy hierarchy;
             uint itemId;
             IVsWindowFrame windowFrame;
-            if (!VsShellUtilities.IsDocumentOpen(ServiceProvider, span.Path, VSConstants.LOGVIEWID_Any, out hierarchy, out itemId, out windowFrame))
+            if (!VsShellUtilities.IsDocumentOpen(ServiceProvider.GlobalProvider, span.Path, VSConstants.LOGVIEWID_Any, out hierarchy, out itemId, out windowFrame))
             {
-                VsShellUtilities.OpenDocument(ServiceProvider, span.Path, VSConstants.LOGVIEWID_Primary, out hierarchy, out itemId, out windowFrame);
+                VsShellUtilities.OpenDocument(ServiceProvider.GlobalProvider, span.Path, VSConstants.LOGVIEWID_Primary, out hierarchy, out itemId, out windowFrame);
             }
 
             var window = VsShellUtilities.GetWindowObject(windowFrame);

@@ -16,7 +16,7 @@
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
             <Button Name="SearchButton" Click="SearchButton_Click" Content="Search" Height="20" DockPanel.Dock="Bottom"/>
-            <TextBox x:Name="TextBoxInput" TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14"/>
+            <TextBox x:Name="TextBoxInput" TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14" KeyUp="TextBoxInput_KeyUp"/>
         </DockPanel>
         <GridSplitter Grid.Row="1" Height="3" HorizontalAlignment="Stretch" ShowsPreview="True"></GridSplitter>
         <ListView Grid.Row="2" Name="ListViewResults" >
