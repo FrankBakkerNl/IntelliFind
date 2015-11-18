@@ -251,12 +251,17 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Screenshots\IntelliFind.PNG" />
+    <None Include="Screenshots\IntelliFind.PNG">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <VSCTCompile Include="IntelliFindPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
     <Content Include="Resources\IntelliFindCommand.png" />
-    <Content Include="Resources\IntelliFindPackage.ico" />
+    <Content Include="Resources\IntelliFindPackage.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="VSPackage.resx">

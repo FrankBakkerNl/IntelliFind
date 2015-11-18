@@ -4,6 +4,7 @@
     <Identity Id="IntelliFind.Frank Bakker.ff94be72-bd2a-4c4e-b951-63f8d8f97d59" Version="1.0" Language="en-US" Publisher="Frank Bakker" />
     <DisplayName>IntelliFind</DisplayName>
     <Description xml:space="preserve">This extension allows developers to search a code base using C# script and Roslyn</Description>
+    <Icon>Resources\IntelliFindPackage.ico</Icon>
     <PreviewImage>Screenshots\IntelliFind.PNG</PreviewImage>
   </Metadata>
   <Installation>

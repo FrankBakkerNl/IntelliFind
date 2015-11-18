@@ -11,6 +11,8 @@ using Microsoft.VisualStudio.Shell.Interop;
 using ScriptWrapper;
 using TestVisx;
 using Task = System.Threading.Tasks.Task;
+using System.Collections.Generic;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace IntelliFind
 {
@@ -56,6 +58,16 @@ namespace IntelliFind
 
             DisplayResult(scriptResult);
         }
+
+        // This static field forces the required assemblies to be loaded
+        // That way we are sure they will be available to the script
+        private static IEnumerable<Type> neededTypes = new[]
+        {
+            typeof (CSharpSyntaxNode),
+            typeof (ClassDeclarationSyntax),
+            typeof (Location),
+            typeof(Workspace)
+        };
 
         private void DisplayResult(object scriptResult)
         {
