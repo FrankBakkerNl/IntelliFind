@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using MCS = Microsoft.CodeAnalysis.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
+using MCCS = Microsoft.CodeAnalysis.CSharp.Scripting;
 
 namespace ScriptWrapper
 {
@@ -16,11 +17,11 @@ namespace ScriptWrapper
     {
         public static Task<T> EvaluateAsync<T>(string code, object globals)
         {
-            var options = MCS.ScriptOptions.Default
-                .WithReferences(GetReferencedAssemblies())
-                .WithNamespaces(Usings);
+            var options = ScriptOptions.Default
+                .AddReferences(GetReferencedAssemblies())
+                .AddImports(Usings);
 
-            return MCS.CSharp.CSharpScript.EvaluateAsync<T>(code, options, globals);
+            return MCCS.CSharpScript.EvaluateAsync<T>(code, options, globals);
         }
 
         private static IEnumerable<Assembly> GetReferencedAssemblies()
