@@ -251,6 +251,7 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Screenshots\IntelliFind.PNG" />
     <VSCTCompile Include="IntelliFindPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
