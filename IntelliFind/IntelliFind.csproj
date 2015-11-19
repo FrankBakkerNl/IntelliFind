@@ -58,6 +58,7 @@
     </Compile>
     <Compile Include="IntelliFindPackage.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RoslynVisxHelpers.cs" />
     <Compile Include="ScriptGlobals.cs" />
   </ItemGroup>
   <ItemGroup>

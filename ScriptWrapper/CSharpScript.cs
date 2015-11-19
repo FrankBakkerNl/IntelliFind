@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.Scripting;
 using MCCS = Microsoft.CodeAnalysis.CSharp.Scripting;
@@ -9,19 +10,23 @@ using MCCS = Microsoft.CodeAnalysis.CSharp.Scripting;
 namespace ScriptWrapper
 {
     /// <summary>
-    /// This class wrapps the Microsoft.CodeAnalysis.Scripting API
+    /// This class wraps the Microsoft.CodeAnalysis.Scripting API
     /// This is needed because Visual Studio uses Microsoft.VisualStudio.LanguageServices Version 1.0
-    /// while Microsoft.CodeAnalysis.Scripting requires versio 1.1
+    /// while Microsoft.CodeAnalysis.Scripting requires version 1.1
     /// </summary>
     public class CSharpScript
     {
-        public static Task<T> EvaluateAsync<T>(string code, object globals)
+        public static Task<T> EvaluateAsync<T>(string code, object globals, CancellationToken cancellationToken= default(CancellationToken))
         {
             var options = ScriptOptions.Default
                 .AddReferences(GetReferencedAssemblies())
                 .AddImports(Usings);
 
-            return MCCS.CSharpScript.EvaluateAsync<T>(code, options, globals);
+            return Task.Run<T>(() => 
+                MCCS.CSharpScript.EvaluateAsync<T>(code, options, globals, globals.GetType(), cancellationToken), 
+                cancellationToken);
+
+            //return MCCS.CSharpScript.EvaluateAsync<T>(code, options, globals, globals.GetType(), cancellationToken);
         }
 
         private static IEnumerable<Assembly> GetReferencedAssemblies()

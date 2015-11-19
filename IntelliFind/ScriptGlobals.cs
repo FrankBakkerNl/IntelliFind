@@ -1,16 +1,23 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using EnvDTE;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.Shell;
-using System.Linq;
-using Microsoft.VisualStudio.ComponentModelHost;
 using Document = Microsoft.CodeAnalysis.Document;
 
-namespace TestVisx
+namespace IntelliFind
 {
     public class ScriptGlobals
     {
+        public ScriptGlobals(CancellationToken cancellationToken)
+        {
+            CancellationToken = cancellationToken;
+        }
+
         /// <summary>
         /// Provides access to the Workspace
         /// </summary>
@@ -23,18 +30,15 @@ namespace TestVisx
             }
         }
 
-        public SyntaxNode SelectedNode => GetSelectedNode();
+        public SyntaxNode SelectedNode => RoslynVisxHelpers.GetSelectedNode(Workspace);
 
         public Document ActiveDocument
         {
             get
             {
-                var dte = Package.GetGlobalService(typeof(DTE)) as DTE;
-                var activeDocument = dte?.ActiveDocument;
+                var activeDocument = RoslynVisxHelpers.GetActiveDteDocument();
                 if (activeDocument == null) return null;
-
-                var documentids = Workspace.CurrentSolution.GetDocumentIdsWithFilePath(activeDocument.FullName);
-                return Workspace.CurrentSolution.GetDocument(documentids.FirstOrDefault());
+                return RoslynVisxHelpers.GetCodeAnalysisDocumentFromDteDocument(activeDocument, Workspace);
             }
         }
 
@@ -43,24 +47,6 @@ namespace TestVisx
             .SelectMany(p => p.Documents)
             .SelectMany(d => d.GetSyntaxRootAsync().Result.DescendantNodes());
 
-        private SyntaxNode GetSelectedNode()
-        {
-            var dte = Package.GetGlobalService(typeof(DTE)) as DTE;
-            var activeDocument = dte?.ActiveDocument;
-
-            var textDocument = activeDocument?.Object() as EnvDTE.TextDocument;
-            var selectionPoint = textDocument?.Selection.AnchorPoint;
-            if (selectionPoint == null) return null;
-
-            var documentids = Workspace.CurrentSolution.GetDocumentIdsWithFilePath(activeDocument.FullName);
-            var document = Workspace.CurrentSolution.GetDocument(documentids.FirstOrDefault());
-
-            var syntaxTree = document?.GetSyntaxTreeAsync().Result;
-            if (syntaxTree == null) return null;
-
-            var absPosition = syntaxTree.GetText().Lines[selectionPoint.Line - 1].Start + selectionPoint.LineCharOffset;
-            var token = syntaxTree.GetRoot()?.FindToken(absPosition);
-            return token?.Parent;
-        }
+        public CancellationToken CancellationToken { get; }
     }
 }
