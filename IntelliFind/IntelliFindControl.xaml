@@ -16,8 +16,9 @@
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
             <ToolBar DockPanel.Dock="Top">
-                <Button Name="SearchButton" Click="SearchButton_Click" Content="Search" Height="20" Width="50" ToolTip="Ctrl+Enter"/>
-                <Button Name="CancelButton" Click="CancelButton_OnClick" Content="Cancel" Height="20" Width="50" />
+                <Button Name="SearchButton" Click="SearchButton_Click" Content="Search" Height="20" Width="50" ToolTip="Ctrl+Enter">
+                </Button>
+                <Button Name="CancelButton" Click="CancelButton_OnClick" Content="Cancel" Height="20" Width="50" Visibility="Collapsed"/>
                 <Label>Sample:</Label>
                 <ComboBox Width="200" SelectionChanged="Selector_OnSelectionChanged">
                     <ListViewItem>Workspace</ListViewItem>
@@ -25,6 +26,7 @@
                     <ListViewItem>SelectedNode</ListViewItem>
                     <ListViewItem>ActiveDocument</ListViewItem>
                 </ComboBox>
+                <CheckBox Name="CheckBoxSelectMode">Select mode</CheckBox>
             </ToolBar>
             <TextBox x:Name="TextBoxInput" TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14"/>
         </DockPanel>
