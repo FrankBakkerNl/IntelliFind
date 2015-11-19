@@ -52,12 +52,13 @@ namespace IntelliFind
                 CancelButton.Visibility = Visibility.Visible;
 
                 _cancellationTokenSource = new CancellationTokenSource();
+                var scriptGlobals = new ScriptGlobals(_cancellationTokenSource.Token);
 
+                var scriptText = CheckBoxSelectMode.IsChecked ?? false ? TextBoxInput.SelectedText : TextBoxInput.Text;
                 object scriptResult;
                 try
                 {
-                    var scriptGlobals = new ScriptGlobals(_cancellationTokenSource.Token);
-                    scriptResult = await CSharpScript.EvaluateAsync<object>(TextBoxInput.Text, scriptGlobals, _cancellationTokenSource.Token);
+                    scriptResult = await CSharpScript.EvaluateAsync<object>(scriptText, scriptGlobals, _cancellationTokenSource.Token);
                 }
                 catch (Exception ex)
                 {
