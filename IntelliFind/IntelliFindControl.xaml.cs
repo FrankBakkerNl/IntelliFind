@@ -5,13 +5,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using ScriptWrapper;
-using TestVisx;
 using Task = System.Threading.Tasks.Task;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace IntelliFind
@@ -34,7 +32,7 @@ namespace IntelliFind
         {
             await ExecuteSearch();
         }
-        private async void TextBoxInput_KeyUp(object sender, KeyEventArgs e)
+        private async void IntelliFindControl_KeyUp(object sender, KeyEventArgs e)
         {
             // Handle Ctr+Enter for Search
             if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
@@ -44,29 +42,45 @@ namespace IntelliFind
             }
         }
 
+        private CancellationTokenSource _cancellationTokenSource;
+
         private async Task ExecuteSearch()
         {
-            object scriptResult;
             try
             {
-                scriptResult = await CSharpScript.EvaluateAsync<object>(TextBoxInput.Text, new ScriptGlobals());
-            }
-            catch (Exception ex)
-            {
-                scriptResult = ex;
-            }
+                SearchButton.Visibility = Visibility.Collapsed;
+                CancelButton.Visibility = Visibility.Visible;
 
-            DisplayResult(scriptResult);
+                _cancellationTokenSource = new CancellationTokenSource();
+
+                object scriptResult;
+                try
+                {
+                    var scriptGlobals = new ScriptGlobals(_cancellationTokenSource.Token);
+                    scriptResult = await CSharpScript.EvaluateAsync<object>(TextBoxInput.Text, scriptGlobals, _cancellationTokenSource.Token);
+                }
+                catch (Exception ex)
+                {
+                    scriptResult = ex;
+                }
+
+                DisplayResult(scriptResult);
+            }
+            finally
+            {
+                SearchButton.Visibility = Visibility.Visible;
+                CancelButton.Visibility = Visibility.Collapsed;
+            }
         }
 
         // This static field forces the required assemblies to be loaded
         // That way we are sure they will be available to the script
-        private static IEnumerable<Type> neededTypes = new[]
+        private static readonly IEnumerable NeededTypes = new[]
         {
             typeof (CSharpSyntaxNode),
             typeof (ClassDeclarationSyntax),
             typeof (Location),
-            typeof(Workspace)
+            typeof (Workspace),
         };
 
         private void DisplayResult(object scriptResult)
@@ -93,7 +107,7 @@ namespace IntelliFind
                     ToolTip = syntaxNodeorToken.ToString(),
                 };
 
-                listviewItem.MouseDoubleClick += (o, args) => { SelectSpanInCodeWindow(lineSpan); };
+                listviewItem.MouseDoubleClick += (o, args) => { RoslynVisxHelpers.SelectSpanInCodeWindow(lineSpan); };
                 return listviewItem;
             }
             else
@@ -124,37 +138,28 @@ namespace IntelliFind
 
         private IEnumerable MakeEnumerable(object input)
         {
-            // If the result is Enumerable we return it, o
             var enumerable = input as IEnumerable;
             if (enumerable != null && !(input is string))
             {
+                // If the item is Enumerable we return it as is
                 return enumerable;
             }
             else
             {
+                // If not we wrap it in an Enumerable with a single item
                 return new[] { input };
             }
         }
 
-        private void SelectSpanInCodeWindow(FileLinePositionSpan span)
+        private void Selector_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // If the path is not avalable we cannot jump to it
-            if (string.IsNullOrEmpty(span.Path)) return;
+            var combobox = (ComboBox) sender;
+            TextBoxInput.Text = ((ListViewItem)combobox.SelectedItem).Content.ToString();
+        }
 
-            // Check if the document is opened, if not open it.
-            IVsUIHierarchy hierarchy;
-            uint itemId;
-            IVsWindowFrame windowFrame;
-            if (!VsShellUtilities.IsDocumentOpen(ServiceProvider.GlobalProvider, span.Path, VSConstants.LOGVIEWID_Any, out hierarchy, out itemId, out windowFrame))
-            {
-                VsShellUtilities.OpenDocument(ServiceProvider.GlobalProvider, span.Path, VSConstants.LOGVIEWID_Primary, out hierarchy, out itemId, out windowFrame);
-            }
-
-            var window = VsShellUtilities.GetWindowObject(windowFrame);
-            window.SetFocus();
-
-            var textView = VsShellUtilities.GetTextView(windowFrame);
-            textView.SetSelection(span.StartLinePosition.Line, span.StartLinePosition.Character, span.EndLinePosition.Line, span.EndLinePosition.Character);
+        private void CancelButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            _cancellationTokenSource.Cancel();
         }
     }
 }

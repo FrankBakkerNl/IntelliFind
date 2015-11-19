@@ -6,8 +6,8 @@
              Background="{DynamicResource VsBrush.Window}"
              Foreground="{DynamicResource VsBrush.WindowText}"
              mc:Ignorable="d"
-             d:DesignHeight="300" d:DesignWidth="300"
-             Name="MyToolWindow">
+             d:DesignHeight="277" d:DesignWidth="443"
+             Name="MyToolWindow" KeyUp="IntelliFindControl_KeyUp">
     <Grid Margin="5,5,5,5">
         <Grid.RowDefinitions>
             <RowDefinition Height="65"></RowDefinition>
@@ -15,8 +15,18 @@
             <RowDefinition Height="*"></RowDefinition>
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
-            <Button Name="SearchButton" Click="SearchButton_Click" Content="Search" Height="20" DockPanel.Dock="Bottom"/>
-            <TextBox x:Name="TextBoxInput" TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14" KeyUp="TextBoxInput_KeyUp"/>
+            <ToolBar DockPanel.Dock="Top">
+                <Button Name="SearchButton" Click="SearchButton_Click" Content="Search" Height="20" Width="50" ToolTip="Ctrl+Enter"/>
+                <Button Name="CancelButton" Click="CancelButton_OnClick" Content="Cancel" Height="20" Width="50" />
+                <Label>Sample:</Label>
+                <ComboBox Width="200" SelectionChanged="Selector_OnSelectionChanged">
+                    <ListViewItem>Workspace</ListViewItem>
+                    <ListViewItem>AllNodes</ListViewItem>
+                    <ListViewItem>SelectedNode</ListViewItem>
+                    <ListViewItem>ActiveDocument</ListViewItem>
+                </ComboBox>
+            </ToolBar>
+            <TextBox x:Name="TextBoxInput" TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14"/>
         </DockPanel>
         <GridSplitter Grid.Row="1" Height="3" HorizontalAlignment="Stretch" ShowsPreview="True"></GridSplitter>
         <ListView Grid.Row="2" Name="ListViewResults" >
