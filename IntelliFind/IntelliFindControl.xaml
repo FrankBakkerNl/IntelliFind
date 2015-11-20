@@ -3,35 +3,54 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             Background="{DynamicResource VsBrush.Window}"
-             Foreground="{DynamicResource VsBrush.WindowText}"
+             xmlns:shell="clr-namespace:Microsoft.VisualStudio.Shell;assembly=Microsoft.VisualStudio.Shell.14.0"
+             xmlns:platformUi="clr-namespace:Microsoft.VisualStudio.PlatformUI;assembly=Microsoft.VisualStudio.Shell.14.0"
              mc:Ignorable="d"
              d:DesignHeight="277" d:DesignWidth="443"
              Name="MyToolWindow" KeyUp="IntelliFindControl_KeyUp">
     <Grid Margin="5,5,5,5">
+        <Grid.Resources>
+
+            <Style x:Key="CommonStyle" TargetType="Control">
+                <Setter Property="Foreground" Value="{DynamicResource {x:Static shell:VsBrushes.ToolWindowTextKey}}"/>
+                <Setter Property="Background" Value="{DynamicResource {x:Static shell:VsBrushes.ToolWindowBackgroundKey}}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource {x:Static shell:VsBrushes.ToolWindowBorderKey}}"/>
+            </Style>
+
+            <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type Button}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type Label}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type CheckBox}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type ComboBox}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type ListViewItem}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type ToolBar}" BasedOn="{StaticResource CommonStyle}"/>
+            <Style TargetType="{x:Type GridSplitter}" BasedOn="{StaticResource CommonStyle}"/>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="65"></RowDefinition>
             <RowDefinition Height="3"></RowDefinition>
             <RowDefinition Height="*"></RowDefinition>
         </Grid.RowDefinitions>
+        
         <DockPanel Grid.Row="0">
             <ToolBar DockPanel.Dock="Top">
-                <Button Name="SearchButton" Click="SearchButton_Click" Content="Search" Height="20" Width="50" ToolTip="Ctrl+Enter">
-                </Button>
-                <Button Name="CancelButton" Click="CancelButton_OnClick" Content="Cancel" Height="20" Width="50" Visibility="Collapsed"/>
-                <Label>Sample:</Label>
-                <ComboBox Width="200" SelectionChanged="Selector_OnSelectionChanged">
-                    <ListViewItem>Workspace</ListViewItem>
+                <Button Name="SearchButton" Click="SearchButton_Click" Height="20" Width="50" ToolTip="Ctrl+Enter" Foreground="{DynamicResource {x:Static shell:VsBrushes.ToolWindowTextKey}}">Search</Button>
+                <Button Name="CancelButton" Click="CancelButton_OnClick" Height="20" Width="50" Visibility="Collapsed" Foreground="{DynamicResource {x:Static shell:VsBrushes.ToolWindowTextKey}}">Cancel</Button>
+                <Label Style="{StaticResource CommonStyle}">Sample:</Label>
+                <ComboBox Style="{StaticResource CommonStyle}" Width="200" Name="Sample" SelectionChanged="Sample_OnSelectionChanged">
+                    <ListViewItem Style="{StaticResource CommonStyle}">Workspace</ListViewItem>
                     <ListViewItem>AllNodes</ListViewItem>
                     <ListViewItem>SelectedNode</ListViewItem>
                     <ListViewItem>ActiveDocument</ListViewItem>
                 </ComboBox>
-                <CheckBox Name="CheckBoxSelectMode">Select mode</CheckBox>
+                <CheckBox Name="CheckBoxSelectMode" Style="{StaticResource CommonStyle}">Select mode</CheckBox>
             </ToolBar>
-            <TextBox x:Name="TextBoxInput" TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14"/>
+            <TextBox 
+                x:Name="TextBoxInput" 
+                TextWrapping="Wrap" Text="Workspace" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="14"/>
         </DockPanel>
         <GridSplitter Grid.Row="1" Height="3" HorizontalAlignment="Stretch" ShowsPreview="True"></GridSplitter>
-        <ListView Grid.Row="2" Name="ListViewResults" >
+        <ListView Style="{StaticResource CommonStyle}" Grid.Row="2" Name="ListViewResults" >
         </ListView>
     </Grid>
 </UserControl>

@@ -8,6 +8,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using ScriptWrapper;
 using Task = System.Threading.Tasks.Task;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -42,6 +43,17 @@ namespace IntelliFind
             }
         }
 
+        private void Sample_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var combobox = (ComboBox)sender;
+            TextBoxInput.Text = ((ListViewItem)combobox.SelectedItem).Content.ToString();
+        }
+
+        private void CancelButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            _cancellationTokenSource.Cancel();
+        }
+
         private CancellationTokenSource _cancellationTokenSource;
 
         private async Task ExecuteSearch()
@@ -58,7 +70,12 @@ namespace IntelliFind
                 object scriptResult;
                 try
                 {
-                    scriptResult = await CSharpScript.EvaluateAsync<object>(scriptText, scriptGlobals, _cancellationTokenSource.Token);
+                    scriptResult = await Task.Run(() => CSharpScriptWrapper.EvaluateAsync<object>(
+                        scriptText, 
+                        scriptGlobals,
+                        ReferencedAssemblies,
+                        Usings, 
+                        _cancellationTokenSource.Token), _cancellationTokenSource.Token);
                 }
                 catch (Exception ex)
                 {
@@ -76,13 +93,18 @@ namespace IntelliFind
 
         // This static field forces the required assemblies to be loaded
         // That way we are sure they will be available to the script
-        private static readonly IEnumerable NeededTypes = new[]
+        private static readonly IEnumerable<Type> NeededTypes = new[]
         {
-            typeof (CSharpSyntaxNode),
-            typeof (ClassDeclarationSyntax),
-            typeof (Location),
-            typeof (Workspace),
+            typeof (System.Object),
+            typeof (System.Linq.Enumerable),
+            typeof (Microsoft.CodeAnalysis.Workspace), 
+            typeof (Microsoft.CodeAnalysis.CSharp.CSharpSyntaxNode), 
+            typeof (Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax),
         };
+
+        private static readonly string[] Usings = NeededTypes.Select(t => t.Namespace).Distinct().ToArray();
+        private static readonly IEnumerable<Assembly> ReferencedAssemblies = NeededTypes.Select(t => t.Assembly).ToArray();
+        
 
         private void DisplayResult(object scriptResult)
         {
@@ -150,17 +172,6 @@ namespace IntelliFind
                 // If not we wrap it in an Enumerable with a single item
                 return new[] { input };
             }
-        }
-
-        private void Selector_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var combobox = (ComboBox) sender;
-            TextBoxInput.Text = ((ListViewItem)combobox.SelectedItem).Content.ToString();
-        }
-
-        private void CancelButton_OnClick(object sender, RoutedEventArgs e)
-        {
-            _cancellationTokenSource.Cancel();
         }
     }
 }

@@ -42,6 +42,9 @@ namespace IntelliFind
             }
         }
 
+        /// <summary>
+        /// Returns all SyntaxNodes for all the Documents for all Projects in the current Solution
+        /// </summary>
         public IEnumerable<SyntaxNode> AllNodes =>
             Workspace.CurrentSolution.Projects
             .SelectMany(p => p.Documents)
