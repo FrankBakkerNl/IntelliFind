@@ -67,22 +67,22 @@ namespace IntelliFind
                 var scriptGlobals = new ScriptGlobals(_cancellationTokenSource.Token);
 
                 var scriptText = CheckBoxSelectMode.IsChecked ?? false ? TextBoxInput.SelectedText : TextBoxInput.Text;
-                object scriptResult;
                 try
                 {
-                    scriptResult = await Task.Run(() => CSharpScriptWrapper.EvaluateAsync<object>(
+                    var scriptResult = await Task.Run(() => CSharpScriptWrapper.EvaluateAsync<object>(
                         scriptText, 
                         scriptGlobals,
                         ReferencedAssemblies,
                         Usings, 
                         _cancellationTokenSource.Token), _cancellationTokenSource.Token);
+
+                    DisplayResult(scriptResult);
                 }
                 catch (Exception ex)
                 {
-                    scriptResult = ex;
+                    DisplayResult(ex);
                 }
 
-                DisplayResult(scriptResult);
             }
             finally
             {
@@ -97,7 +97,8 @@ namespace IntelliFind
         {
             typeof (System.Object),
             typeof (System.Linq.Enumerable),
-            typeof (Microsoft.CodeAnalysis.Workspace), 
+            typeof (Microsoft.CodeAnalysis.Workspace),
+            typeof (Microsoft.CodeAnalysis.ModelExtensions),
             typeof (Microsoft.CodeAnalysis.CSharp.CSharpSyntaxNode), 
             typeof (Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax),
         };
