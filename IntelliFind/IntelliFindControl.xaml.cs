@@ -91,8 +91,7 @@ namespace IntelliFind
             }
         }
 
-        // This static field forces the required assemblies to be loaded
-        // That way we are sure they will be available to the script
+        // These types are used to set te references and Usings for the script
         private static readonly IEnumerable<Type> NeededTypes = new[]
         {
             typeof (System.Object),
