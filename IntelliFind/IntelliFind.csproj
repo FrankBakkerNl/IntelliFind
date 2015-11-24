@@ -252,9 +252,10 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Screenshots\IntelliFind.PNG">
+    <Content Include="Screenshots\IntelliFind.PNG">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <VSCTCompile Include="IntelliFindPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
