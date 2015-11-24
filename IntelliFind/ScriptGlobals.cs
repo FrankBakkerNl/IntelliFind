@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using EnvDTE;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.LanguageServices;
@@ -30,7 +32,20 @@ namespace IntelliFind
             }
         }
 
-        public SyntaxNode SelectedNode => RoslynVisxHelpers.GetSelectedNode(Workspace);
+        /// <summary>
+        /// Returns the SyntaxToken that is currently selected in the active code window
+        /// </summary>
+        public SyntaxToken SelectedToken
+        {
+            get
+            {
+                var token = RoslynVisxHelpers.GetSelectedToken(Workspace);
+                if (!token.HasValue) throw new InvalidOperationException("No SyntaxToken is currently selected");
+                    
+                 return token.Value;
+            }
+        }
+
 
         public Document ActiveDocument
         {
@@ -48,7 +63,7 @@ namespace IntelliFind
         public IEnumerable<SyntaxNode> AllNodes =>
             Workspace.CurrentSolution.Projects
             .SelectMany(p => p.Documents)
-            .SelectMany(d => d.GetSyntaxRootAsync().Result.DescendantNodes());
+            .SelectMany(d => d.GetSyntaxRootAsync(CancellationToken).Result.DescendantNodes());
 
         public CancellationToken CancellationToken { get; }
     }

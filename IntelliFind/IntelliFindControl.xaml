@@ -36,12 +36,8 @@
             <ToolBar DockPanel.Dock="Top">
                 <Button Name="SearchButton" Click="SearchButton_Click" Height="20" Width="50" ToolTip="Ctrl+Enter" Foreground="{DynamicResource {x:Static shell:VsBrushes.ToolWindowTextKey}}">Search</Button>
                 <Button Name="CancelButton" Click="CancelButton_OnClick" Height="20" Width="50" Visibility="Collapsed" Foreground="{DynamicResource {x:Static shell:VsBrushes.ToolWindowTextKey}}">Cancel</Button>
-                <Label Style="{StaticResource CommonStyle}">Sample:</Label>
-                <ComboBox Style="{StaticResource CommonStyle}" Width="200" Name="Sample" SelectionChanged="Sample_OnSelectionChanged">
-                    <ListViewItem Style="{StaticResource CommonStyle}">Workspace</ListViewItem>
-                    <ListViewItem>AllNodes</ListViewItem>
-                    <ListViewItem>SelectedNode</ListViewItem>
-                    <ListViewItem>ActiveDocument</ListViewItem>
+                <Label Style="{StaticResource CommonStyle}">Globals:</Label>
+                <ComboBox Style="{StaticResource CommonStyle}" Width="200" Name="GlobalsComboBox" SelectionChanged="GlobalsComboBox_OnSelectionChanged">
                 </ComboBox>
                 <CheckBox Name="CheckBoxSelectMode" Style="{StaticResource CommonStyle}">Select mode</CheckBox>
             </ToolBar>

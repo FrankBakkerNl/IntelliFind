@@ -27,6 +27,17 @@ namespace IntelliFind
         public IntelliFindControl()
         {
             this.InitializeComponent();
+            LoadGlobals();
+        }
+
+        private void LoadGlobals()
+        {
+            var globalProperties = typeof (ScriptGlobals).GetProperties().Select(p => p.Name);
+            GlobalsComboBox.Items.Clear();
+            foreach (var property in globalProperties)
+            {
+                GlobalsComboBox.Items.Add(property);
+            }
         }
 
         private async void SearchButton_Click(object sender, RoutedEventArgs e)
@@ -43,10 +54,10 @@ namespace IntelliFind
             }
         }
 
-        private void Sample_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void GlobalsComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var combobox = (ComboBox)sender;
-            TextBoxInput.Text = ((ListViewItem)combobox.SelectedItem).Content.ToString();
+            TextBoxInput.SelectedText = combobox.SelectedItem.ToString();
         }
 
         private void CancelButton_OnClick(object sender, RoutedEventArgs e)
