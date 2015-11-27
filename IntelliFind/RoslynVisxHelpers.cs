@@ -3,14 +3,24 @@ using System.Linq;
 using EnvDTE;
 using Microsoft.CodeAnalysis;
 using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.ComponentModelHost;
+using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Document = Microsoft.CodeAnalysis.Document;
+using TextDocument = EnvDTE.TextDocument;
 
 namespace IntelliFind
 {
     class RoslynVisxHelpers
     {
+
+        public static Workspace GetWorkspace()
+        {
+            var componentModel = (IComponentModel)Package.GetGlobalService(typeof(SComponentModel));
+            return componentModel.GetService<VisualStudioWorkspace>();
+        }
+
         public static void SelectSpanInCodeWindow(FileLinePositionSpan span)
         {
             // If the path is not avalable we cannot jump to it
@@ -41,7 +51,7 @@ namespace IntelliFind
         {
             var activeDocument = GetActiveDteDocument();
 
-            var textDocument = activeDocument?.Object() as EnvDTE.TextDocument;
+            var textDocument = activeDocument?.Object() as TextDocument;
             var selectionPoint = textDocument?.Selection.AnchorPoint;
             if (selectionPoint == null) return null;
 

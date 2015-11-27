@@ -6,12 +6,12 @@ using System.Windows.Input;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using ScriptWrapper;
-using Task = System.Threading.Tasks.Task;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Threading.Tasks;
+using IntelliFind.ScriptContext;
 
 namespace IntelliFind
 {
@@ -26,7 +26,7 @@ namespace IntelliFind
         /// </summary>
         public IntelliFindControl()
         {
-            this.InitializeComponent();
+            InitializeComponent();
             LoadGlobals();
         }
 
@@ -73,33 +73,39 @@ namespace IntelliFind
             {
                 SearchButton.Visibility = Visibility.Collapsed;
                 CancelButton.Visibility = Visibility.Visible;
+                ListViewResults.Items.Clear();
 
                 _cancellationTokenSource = new CancellationTokenSource();
+
                 var scriptGlobals = new ScriptGlobals(_cancellationTokenSource.Token);
 
                 var scriptText = CheckBoxSelectMode.IsChecked ?? false ? TextBoxInput.SelectedText : TextBoxInput.Text;
                 try
                 {
-                    var scriptResult = await Task.Run(() => CSharpScriptWrapper.EvaluateAsync<object>(
-                        scriptText, 
-                        scriptGlobals,
-                        ReferencedAssemblies,
-                        Usings, 
-                        _cancellationTokenSource.Token), _cancellationTokenSource.Token);
-
-                    DisplayResult(scriptResult);
+                    await Task.Run(()=>RunScript(scriptGlobals, scriptText), _cancellationTokenSource.Token);
                 }
                 catch (Exception ex)
                 {
-                    DisplayResult(ex);
+                    ListViewResults.Items.Add(CreateListViewItem(ex));
                 }
-
             }
             finally
             {
                 SearchButton.Visibility = Visibility.Visible;
                 CancelButton.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private async Task RunScript(ScriptGlobals scriptGlobals, string scriptText)
+        {
+            var scriptResult = await CSharpScriptWrapper.EvaluateAsync<object>(
+                scriptText,
+                scriptGlobals,
+                ReferencedAssemblies,
+                Usings,
+                _cancellationTokenSource.Token);
+
+            await DisplayResult(scriptResult);
         }
 
         // These types are used to set te references and Usings for the script
@@ -117,14 +123,17 @@ namespace IntelliFind
         private static readonly IEnumerable<Assembly> ReferencedAssemblies = NeededTypes.Select(t => t.Assembly).ToArray();
         
 
-        private void DisplayResult(object scriptResult)
+        private async Task DisplayResult(object scriptResult)
         {
-            ListViewResults.Items.Clear();
-
+            // The foreach is done on background thread
             foreach (var item in MakeEnumerable(scriptResult))
             {
-                var listviewItem = CreateListViewItem(item);
-                ListViewResults.Items.Add(listviewItem);
+                _cancellationTokenSource?.Token.ThrowIfCancellationRequested();
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    var listviewItem = CreateListViewItem(item);
+                    ListViewResults.Items.Add(listviewItem);
+                });
             }
         }
 
@@ -168,7 +177,6 @@ namespace IntelliFind
 
             return value.Substring(0, Math.Min(value.Length, 30)).Replace("\n", string.Empty).Replace("\r", string.Empty);
         }
-
 
         private IEnumerable MakeEnumerable(object input)
         {
