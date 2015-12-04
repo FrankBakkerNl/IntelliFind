@@ -1,26 +1,26 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using ScriptWrapper;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using IntelliFind.ScriptContext;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 
 namespace IntelliFind
 {
-
     /// <summary>
     /// Interaction logic for IntelliFindControl.
     /// </summary>
     public partial class IntelliFindControl : UserControl
     {
+        private CancellationTokenSource _cancellationTokenSource;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="IntelliFindControl"/> class.
         /// </summary>
@@ -39,11 +39,17 @@ namespace IntelliFind
                 GlobalsComboBox.Items.Add(property);
             }
         }
+        private void GlobalsComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var combobox = (ComboBox)sender;
+            TextBoxInput.SelectedText = combobox.SelectedItem.ToString();
+        }
 
         private async void SearchButton_Click(object sender, RoutedEventArgs e)
         {
             await ExecuteSearch();
         }
+
         private async void IntelliFindControl_KeyUp(object sender, KeyEventArgs e)
         {
             // Handle Ctr+Enter for Search
@@ -54,18 +60,37 @@ namespace IntelliFind
             }
         }
 
-        private void GlobalsComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            var combobox = (ComboBox)sender;
-            TextBoxInput.SelectedText = combobox.SelectedItem.ToString();
-        }
-
         private void CancelButton_OnClick(object sender, RoutedEventArgs e)
         {
             _cancellationTokenSource.Cancel();
         }
 
-        private CancellationTokenSource _cancellationTokenSource;
+        private async void TextBoxInput_OnTextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (!IsInitialized) return;
+
+            // If Mode is Auto we execute the script after each change, otherwise we just validate it.
+            if (ModeComboBox.SelectedItem == AutoMode)
+                await ExecuteSearch();
+            else
+                await ValidateScript();
+        }
+
+        private async Task ValidateScript()
+        {
+            var cancellationToken = ResetCancellationToken();
+
+            var code = TextBoxInput.Text;
+            try
+            {
+                var diagnostics = await Task.Run(() => ScriptRunner.ValidateScript(code, typeof(ScriptGlobals)), cancellationToken);
+
+                if (cancellationToken.IsCancellationRequested) return;
+
+                DisplayDiagnostics(diagnostics);
+            }
+            catch (OperationCanceledException) {}
+        }
 
         private async Task ExecuteSearch()
         {
@@ -75,14 +100,16 @@ namespace IntelliFind
                 CancelButton.Visibility = Visibility.Visible;
                 ListViewResults.Items.Clear();
 
-                _cancellationTokenSource = new CancellationTokenSource();
+                var cancellationToken = ResetCancellationToken();
 
-                var scriptGlobals = new ScriptGlobals(_cancellationTokenSource.Token);
-
-                var scriptText = CheckBoxSelectMode.IsChecked ?? false ? TextBoxInput.SelectedText : TextBoxInput.Text;
+                var searchExpression = SearchExpression;
                 try
                 {
-                    await Task.Run(()=>RunScript(scriptGlobals, scriptText), _cancellationTokenSource.Token);
+                    await Task.Run(() => RunScript(searchExpression, cancellationToken), cancellationToken);
+                }
+                catch (CompilationErrorException cex)
+                {
+                    DisplayDiagnostics(cex.Diagnostics);
                 }
                 catch (Exception ex)
                 {
@@ -96,89 +123,61 @@ namespace IntelliFind
             }
         }
 
-        private async Task RunScript(ScriptGlobals scriptGlobals, string scriptText)
-        {
-            var scriptResult = await CSharpScriptWrapper.EvaluateAsync<object>(
-                scriptText,
-                scriptGlobals,
-                ReferencedAssemblies,
-                Usings,
-                _cancellationTokenSource.Token);
 
+        private string SearchExpression => 
+            (ModeComboBox.SelectedItem == ManualSelectedMode) ? TextBoxInput.SelectedText : TextBoxInput.Text;
+
+        private async Task RunScript(string scriptText, CancellationToken cancellationToken)
+        {
+            var scriptResult  = await ScriptRunner.RunScriptAsync(scriptText, new ScriptGlobals(cancellationToken), cancellationToken);
             await DisplayResult(scriptResult);
         }
-
-        // These types are used to set te references and Usings for the script
-        private static readonly IEnumerable<Type> NeededTypes = new[]
-        {
-            typeof (System.Object),
-            typeof (System.Linq.Enumerable),
-            typeof (Microsoft.CodeAnalysis.Workspace),
-            typeof (Microsoft.CodeAnalysis.ModelExtensions),
-            typeof (Microsoft.CodeAnalysis.CSharp.CSharpSyntaxNode), 
-            typeof (Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax),
-        };
-
-        private static readonly string[] Usings = NeededTypes.Select(t => t.Namespace).Distinct().ToArray();
-        private static readonly IEnumerable<Assembly> ReferencedAssemblies = NeededTypes.Select(t => t.Assembly).ToArray();
-        
-
+ 
         private async Task DisplayResult(object scriptResult)
         {
-            // The foreach is done on background thread
+            await Dispatcher.InvokeAsync(()
+                => ListViewResults.Items.Clear());
+
+            // The foreach is done on the Thread from the ThreadPool, because this could call back into 
+            // the enumeration that is returned by the script.
+            // Creating and adding the ListViewItems is done on the UI Thread
             foreach (var item in MakeEnumerable(scriptResult))
             {
-                _cancellationTokenSource?.Token.ThrowIfCancellationRequested();
                 await Dispatcher.InvokeAsync(() =>
                 {
+                    _cancellationTokenSource?.Token.ThrowIfCancellationRequested();
                     var listviewItem = CreateListViewItem(item);
                     ListViewResults.Items.Add(listviewItem);
                 });
             }
         }
 
+        /// <summary>
+        /// Cancells any pending operation and creates a new CancellationToken for a new Cancellable operation
+        /// </summary>
+        private CancellationToken ResetCancellationToken()
+        {
+            // If there was a previous action we cancel it
+            _cancellationTokenSource?.Cancel();
+
+            // Then we create a new CancallationTokenSource
+            var newSource = new CancellationTokenSource();
+            _cancellationTokenSource = newSource;
+            return newSource.Token;
+        }
+
         private ListViewItem CreateListViewItem(object item)
         {
-
-            var syntaxNodeorToken = AsSyntaxNodeOrToken(item);
+            var syntaxNodeorToken = RoslynHelpers.AsSyntaxNodeOrToken(item);
             if (syntaxNodeorToken != null)
             {
-                var lineSpan = syntaxNodeorToken.Value.GetLocation().GetLineSpan();
-                var listviewItem = new ListViewItem
-                {
-                    Content = $"{lineSpan}: {syntaxNodeorToken.Value.Kind()} {Truncate(syntaxNodeorToken.ToString())}",
-                    ToolTip = syntaxNodeorToken.ToString(),
-                };
-
-                listviewItem.MouseDoubleClick += (o, args) => { RoslynVisxHelpers.SelectSpanInCodeWindow(lineSpan); };
-                return listviewItem;
+                return new SyntaxNodeOrTokenListItem(syntaxNodeorToken.Value);
             }
-            else
-            {
-                return new ListViewItem() { Content = item?.ToString() ?? "<null>" };
-            }
+
+            return new ListViewItem() {Content = item?.ToString() ?? "<null>"};
         }
 
-        private SyntaxNodeOrToken? AsSyntaxNodeOrToken(object item)
-        {
-            if (item is SyntaxNode)
-                return (SyntaxNode)item;
-
-            if (item is SyntaxToken)
-                return (SyntaxToken)item;
-
-            return item as SyntaxNodeOrToken?;
-        }
-
-
-        public static string Truncate(string value)
-        {
-            if (string.IsNullOrEmpty(value)) { return value; }
-
-            return value.Substring(0, Math.Min(value.Length, 30)).Replace("\n", string.Empty).Replace("\r", string.Empty);
-        }
-
-        private IEnumerable MakeEnumerable(object input)
+        private static IEnumerable MakeEnumerable(object input)
         {
             var enumerable = input as IEnumerable;
             if (enumerable != null && !(input is string))
@@ -186,10 +185,70 @@ namespace IntelliFind
                 // If the item is Enumerable we return it as is
                 return enumerable;
             }
+
+            // If not we wrap it in an Enumerable with a single item
+            return new[] { input };
+        }
+
+        private async void ReplaceButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var cancellationToken = ResetCancellationToken();
+
+                var replaceExpression = TextBoxReplace.Text;
+                var searchExpression = SearchExpression;
+
+                // Create new solution in Background Task
+                var solution = await Task.Run(() => Replace(searchExpression, replaceExpression, cancellationToken), cancellationToken);
+
+                // Updating the Visual Studio Workspace shoud be done back on the UI Thread
+                var success = RoslynVisxHelpers.GetWorkspace().TryApplyChanges(solution);
+                if (!success)
+                {
+                    ListViewResults.Items.Add(CreateListViewItem("Unable to update solution, maybe it was updated during replace action?"));
+                }
+            }
+            catch (CompilationErrorException cex)
+            {
+                DisplayDiagnostics(cex.Diagnostics);
+            }
+            catch (Exception ex)
+            {
+                ListViewResults.Items.Add(CreateListViewItem(ex));
+            }
+        }
+
+        private static async Task<Solution> Replace(string findExpression, string replaceExpression, CancellationToken cancellationToken)
+        {
+            var scriptResult = await ScriptRunner.RunScriptAsync(findExpression, new ScriptGlobals(cancellationToken),  cancellationToken);
+            var nodesAndTokens = RoslynHelpers.GetSyntaxNodesAndTokens(MakeEnumerable(scriptResult).Cast<object>());
+            var currentSolution = RoslynVisxHelpers.GetWorkspace().CurrentSolution;
+            return await currentSolution.ReplaceNodesWithLiteralAsync(nodesAndTokens, replaceExpression, cancellationToken);
+        }
+
+        private void DisplayDiagnostics(IEnumerable<Diagnostic> diagnostics)
+        {
+            ListViewResults.Items.Clear();
+            foreach (var diagnostic in diagnostics)
+            {
+                var item = new DiagnosticListItem(diagnostic, TextBoxInput);
+                ListViewResults.Items.Add(item);
+            }
+        }
+
+        private void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            var replace = ModeComboBox.SelectedItem == ReplaceMode;
+            if (replace)
+            {
+                MainGrid.RowDefinitions[2].Height = new GridLength(45);
+                MainGrid.RowDefinitions[3].Height = new GridLength(3);
+            }
             else
             {
-                // If not we wrap it in an Enumerable with a single item
-                return new[] { input };
+                MainGrid.RowDefinitions[2].Height = new GridLength(0);
+                MainGrid.RowDefinitions[3].Height = new GridLength(0);
             }
         }
     }

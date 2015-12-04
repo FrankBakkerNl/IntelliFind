@@ -5,7 +5,7 @@
     <DisplayName>IntelliFind</DisplayName>
     <Description xml:space="preserve">This extension allows developers to search a code base using C# script and Roslyn</Description>
     <Icon>Resources\IntelliFindPackage.ico</Icon>
-    <PreviewImage>Screenshots\IntelliFind.PNG</PreviewImage>
+    <PreviewImage>IntelliFind.PNG</PreviewImage>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[14.0]" />

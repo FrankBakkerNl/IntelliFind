@@ -1,29 +1,31 @@
 ﻿using System;
 using System.Linq;
-using EnvDTE;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Host.Mef;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.ComponentModelHost;
 using Microsoft.VisualStudio.LanguageServices;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Document = Microsoft.CodeAnalysis.Document;
-using TextDocument = EnvDTE.TextDocument;
+
 
 namespace IntelliFind
 {
     class RoslynVisxHelpers
     {
+        private static EnvDTE80.DTE2 Dte2 => Package.GetGlobalService(typeof(SDTE)) as EnvDTE80.DTE2;
 
         public static Workspace GetWorkspace()
         {
+            if (!Dte2?.Solution?.IsOpen ?? false) throw new InvalidOperationException("No Solution is opened");
+
             var componentModel = (IComponentModel)Package.GetGlobalService(typeof(SComponentModel));
-            return componentModel.GetService<VisualStudioWorkspace>();
+            return componentModel?.GetService<VisualStudioWorkspace>();
         }
 
         public static void SelectSpanInCodeWindow(FileLinePositionSpan span)
         {
-            // If the path is not avalable we cannot jump to it
+            // If the path is not available we cannot jump to it
             if (string.IsNullOrEmpty(span.Path)) return;
 
             // Check if the document is opened, if not open it.
@@ -42,21 +44,26 @@ namespace IntelliFind
             textView.SetSelection(span.StartLinePosition.Line, span.StartLinePosition.Character, span.EndLinePosition.Line, span.EndLinePosition.Character);
         }
 
-        public static SyntaxNode GetSelectedNode(Workspace workspace)
+        public static Document GetCodeAnalysisDocument()
         {
-            return GetSelectedToken(workspace)?.Parent;
+            var activeDocument = Dte2?.ActiveDocument;
+            if (activeDocument == null) return null;
+            return GetCodeAnalysisDocumentFromDteDocument(activeDocument, GetWorkspace());
         }
 
-        public static SyntaxToken? GetSelectedToken(Workspace workspace)
+        /// <summary>
+        /// Finds the SyntaxToken that is currently selected in the Active Document.
+        /// </summary>
+        public static SyntaxToken? GetSelectedToken()
         {
-            var activeDocument = GetActiveDteDocument();
+            var activeDteDocument = Dte2?.ActiveDocument;
+            var dteTextDocument = activeDteDocument?.Object() as EnvDTE.TextDocument;
 
-            var textDocument = activeDocument?.Object() as TextDocument;
-            var selectionPoint = textDocument?.Selection.AnchorPoint;
+            var selectionPoint = dteTextDocument?.Selection?.AnchorPoint;
             if (selectionPoint == null) return null;
 
-            var document = GetCodeAnalysisDocumentFromDteDocument(activeDocument, workspace);
-            var syntaxTree = document?.GetSyntaxTreeAsync().Result;
+            var codeAnalysisDocument = GetCodeAnalysisDocumentFromDteDocument(activeDteDocument, GetWorkspace());
+            var syntaxTree = codeAnalysisDocument?.GetSyntaxTreeAsync().Result;
             if (syntaxTree == null) return null;
 
             var absolutePosition = GetAbsolutePosition(syntaxTree, selectionPoint.Line, selectionPoint.LineCharOffset);
@@ -69,17 +76,12 @@ namespace IntelliFind
         private static int GetAbsolutePosition(SyntaxTree syntaxTree, int line, int lineCharOffset) => 
             syntaxTree.GetText().Lines[line - 1].Start + lineCharOffset;
 
-        public static Document GetCodeAnalysisDocumentFromDteDocument(EnvDTE.Document activeDocument, Workspace workspace)
+        private static Document GetCodeAnalysisDocumentFromDteDocument(EnvDTE.Document activeDocument, Workspace workspace)
         {
-            var documentids = workspace.CurrentSolution.GetDocumentIdsWithFilePath(activeDocument.FullName);
-            var document = workspace.CurrentSolution.GetDocument(documentids.FirstOrDefault());
-            return document;
-        }
+            var documentId = workspace.CurrentSolution.GetDocumentIdsWithFilePath(activeDocument.FullName).FirstOrDefault();
+            if (documentId == null) return null;
 
-        public static EnvDTE.Document GetActiveDteDocument()
-        {
-            var dte = Package.GetGlobalService(typeof(DTE)) as DTE;
-            return dte?.ActiveDocument;
+            return workspace.CurrentSolution.GetDocument(documentId);
         }
     }
 }
