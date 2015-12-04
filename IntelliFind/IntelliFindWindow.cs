@@ -24,6 +24,8 @@ namespace IntelliFind
     [Guid("94fd8fe2-2333-4bef-a9ec-58bb97ff85cf")]
     public class IntelliFindWindow : ToolWindowPane
     {
+        private IntelliFindControl _intelliFindControl;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="IntelliFindWindow"/> class.
         /// </summary>
@@ -34,7 +36,13 @@ namespace IntelliFind
             // This is the user control hosted by the tool window; Note that, even if this class implements IDisposable,
             // we are not calling Dispose on this object. This is because ToolWindowPane calls Dispose on
             // the object returned by the Content property.
-            this.Content = new IntelliFindControl();
+            _intelliFindControl = new IntelliFindControl();
+            this.Content = _intelliFindControl;
+        }
+
+        protected override void Initialize()
+        {
+            base.Initialize();
         }
     }
 }
