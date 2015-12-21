@@ -38,6 +38,7 @@ namespace IntelliFind
                 GlobalsComboBox.Items.Add(property);
             }
         }
+
         private void GlobalsComboBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var combobox = (ComboBox)sender;
@@ -148,15 +149,15 @@ namespace IntelliFind
                 var moveNextTask = enumerator.MoveNextAsync();
                 while (await moveNextTask)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    
                     count++;
                     if (count > pageLimit)
                     {
-                        // We reached the PageLimit, stop enumerarting until the user requests more items
+                        // We reached the PageLimit, stop enumerating until the user requests more items
                         await WaitForNextPageRequest(pageLimit);
                         pageLimit += 1000;
                     }
-
-                    cancellationToken.ThrowIfCancellationRequested();
 
                     var item = enumerator.Current;
                     // Start getting the next item while we process the current
@@ -282,11 +283,13 @@ namespace IntelliFind
 
             if (ReplaceMode.IsSelected)
             {
+                // Show the replace pane
                 MainGrid.RowDefinitions[2].Height = new GridLength(45);
                 MainGrid.RowDefinitions[3].Height = new GridLength(3);
             }
             else
             {
+                // Hide the replace pane
                 MainGrid.RowDefinitions[2].Height = new GridLength(0);
                 MainGrid.RowDefinitions[3].Height = new GridLength(0);
             }
