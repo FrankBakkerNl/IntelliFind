@@ -8,16 +8,25 @@ namespace IntelliFind.ScriptContext
 {
     public class ScriptGlobals
     {
+        private Workspace _workspace;
+
         public ScriptGlobals(CancellationToken cancellationToken)
         {
             CancellationToken = cancellationToken;
-            Workspace = RoslynVisxHelpers.GetWorkspace();
         }
 
         /// <summary>
         /// Provides access to the Workspace
         /// </summary>
-        public Workspace Workspace { get; internal set; }
+        public Workspace Workspace
+        {
+            get
+            {
+                if (_workspace == null) _workspace = RoslynVisxHelpers.GetWorkspace();
+                return _workspace;
+            }
+            internal set { _workspace = value; }
+        }
 
         /// <summary>
         /// Returns the SyntaxToken that is currently selected in the active code window
