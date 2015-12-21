@@ -113,7 +113,7 @@ namespace IntelliFind
                 }
                 catch (Exception ex)
                 {
-                    ListViewResults.Items.Add(CreateListViewItem(ex));
+                    AddToListView(ex);
                 }
             }
             finally
@@ -141,13 +141,24 @@ namespace IntelliFind
             // The foreach is done on the Thread from the ThreadPool, because this could call back into 
             // the enumeration that is returned by the script.
             // Creating and adding the ListViewItems is done on the UI Thread
+            var count = 0;
+            var limit = 1000;
             foreach (var item in MakeEnumerable(scriptResult))
             {
+                count++;
+                if (count > limit)
+                {
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        AddToListView($"More than {limit} items found");
+                    });
+                    return;
+                }
+
+                _cancellationTokenSource?.Token.ThrowIfCancellationRequested();
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    _cancellationTokenSource?.Token.ThrowIfCancellationRequested();
-                    var listviewItem = CreateListViewItem(item);
-                    ListViewResults.Items.Add(listviewItem);
+                    AddToListView(item);
                 });
             }
         }
@@ -166,6 +177,12 @@ namespace IntelliFind
             return newSource.Token;
         }
 
+        private void AddToListView(object item)
+        {
+            var listviewItem = CreateListViewItem(item);
+            ListViewResults.Items.Add(listviewItem);
+        }
+
         private ListViewItem CreateListViewItem(object item)
         {
             var syntaxNodeorToken = RoslynHelpers.AsSyntaxNodeOrToken(item);
@@ -177,13 +194,13 @@ namespace IntelliFind
             return new ListViewItem() {Content = item?.ToString() ?? "<null>"};
         }
 
-        private static IEnumerable MakeEnumerable(object input)
+        private static IEnumerable<object> MakeEnumerable(object input)
         {
             var enumerable = input as IEnumerable;
             if (enumerable != null && !(input is string))
             {
                 // If the item is Enumerable we return it as is
-                return enumerable;
+                return enumerable.Cast<object>();
             }
 
             // If not we wrap it in an Enumerable with a single item
@@ -206,7 +223,7 @@ namespace IntelliFind
                 var success = RoslynVisxHelpers.GetWorkspace().TryApplyChanges(solution);
                 if (!success)
                 {
-                    ListViewResults.Items.Add(CreateListViewItem("Unable to update solution, maybe it was updated during replace action?"));
+                    AddToListView("Unable to update solution, maybe it was updated during replace action?");
                 }
             }
             catch (CompilationErrorException cex)
@@ -215,7 +232,7 @@ namespace IntelliFind
             }
             catch (Exception ex)
             {
-                ListViewResults.Items.Add(CreateListViewItem(ex));
+                AddToListView(ex);
             }
         }
 
