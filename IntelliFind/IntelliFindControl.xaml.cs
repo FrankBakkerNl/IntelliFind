@@ -10,7 +10,6 @@ using System.Windows.Input;
 using IntelliFind.ScriptContext;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Scripting;
-using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 
 namespace IntelliFind
 {
@@ -70,20 +69,28 @@ namespace IntelliFind
             if (!IsInitialized) return;
 
             // If Mode is Auto we execute the script after each change, otherwise we just validate it.
-            if (ModeComboBox.SelectedItem == AutoMode)
+            if (AutoMode.IsSelected)
                 await ExecuteSearch();
             else
                 await ValidateScript();
+        }
+
+        private async void TextBoxInput_OnSelectionChanged(object sender, RoutedEventArgs e)
+        {
+            if (ManualSelectedMode.IsSelected)
+            {
+                await ValidateScript();
+            }
         }
 
         private async Task ValidateScript()
         {
             var cancellationToken = ResetCancellationToken();
 
-            var code = TextBoxInput.Text;
+            var code = SearchExpression;
             try
             {
-                var diagnostics = await Task.Run(() => ScriptRunner.ValidateScript(code, typeof(ScriptGlobals)), cancellationToken);
+                var diagnostics = await ScriptRunner.ValidateScriptAsync(code, typeof(ScriptGlobals), cancellationToken);
 
                 if (cancellationToken.IsCancellationRequested) return;
 
@@ -105,7 +112,8 @@ namespace IntelliFind
                 var searchExpression = SearchExpression;
                 try
                 {
-                    await Task.Run(() => RunScript(searchExpression, cancellationToken), cancellationToken);
+                    var scriptResult = await ScriptRunner.RunScriptAsync(searchExpression, new ScriptGlobals(cancellationToken), cancellationToken);
+                    await DisplayResultAsync(scriptResult, cancellationToken);
                 }
                 catch (CompilationErrorException cex)
                 {
@@ -123,44 +131,58 @@ namespace IntelliFind
             }
         }
 
+        private string SearchExpression => ManualSelectedMode.IsSelected ? TextBoxInput.SelectedText : TextBoxInput.Text;
 
-        private string SearchExpression => 
-            (ModeComboBox.SelectedItem == ManualSelectedMode) ? TextBoxInput.SelectedText : TextBoxInput.Text;
-
-        private async Task RunScript(string scriptText, CancellationToken cancellationToken)
+        private async Task DisplayResultAsync(object scriptResult, CancellationToken cancellationToken)
         {
-            var scriptResult  = await ScriptRunner.RunScriptAsync(scriptText, new ScriptGlobals(cancellationToken), cancellationToken);
-            await DisplayResult(scriptResult);
-        }
- 
-        private async Task DisplayResult(object scriptResult)
-        {
-            await Dispatcher.InvokeAsync(()
-                => ListViewResults.Items.Clear());
+            ListViewResults.Items.Clear();
 
-            // The foreach is done on the Thread from the ThreadPool, because this could call back into 
-            // the enumeration that is returned by the script.
-            // Creating and adding the ListViewItems is done on the UI Thread
             var count = 0;
-            var limit = 1000;
-            foreach (var item in MakeEnumerable(scriptResult))
-            {
-                count++;
-                if (count > limit)
-                {
-                    await Dispatcher.InvokeAsync(() =>
-                    {
-                        AddToListView($"More than {limit} items found");
-                    });
-                    return;
-                }
+            var pageLimit = 1000;
 
-                _cancellationTokenSource?.Token.ThrowIfCancellationRequested();
-                await Dispatcher.InvokeAsync(() =>
+            var items = MakeEnumerable(scriptResult);
+            // Use an ThreadPoolAsyncEnumerator because the MoveNext calls into the Enumerator returned by the script
+            // and we do not want to run the script code on the UI thread
+            using (var enumerator = new ThreadPoolAsyncEnumerator<object>(items))
+            {
+                var moveNextTask = enumerator.MoveNextAsync();
+                while (await moveNextTask)
                 {
+                    count++;
+                    if (count > pageLimit)
+                    {
+                        // We reached the PageLimit, stop enumerarting until the user requests more items
+                        await WaitForNextPageRequest(pageLimit);
+                        pageLimit += 1000;
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var item = enumerator.Current;
+                    // Start getting the next item while we process the current
+                    moveNextTask = enumerator.MoveNextAsync();
                     AddToListView(item);
-                });
+                }
             }
+            AddToListView($"{count} items found.");
+        }
+
+        private Task WaitForNextPageRequest(int pageLimit)
+        {
+            var moreItemsTaskCompletionSource = new TaskCompletionSource<bool>();
+            var moreItemsListViewItem = new ListViewItem()
+            {
+                Content = $"More than {pageLimit } items found, click to fetch more"
+            };
+            moreItemsListViewItem.MouseUp += (sender, args) =>
+            {
+                ListViewResults.Items.Remove(moreItemsListViewItem);
+                moreItemsTaskCompletionSource.SetResult(true);
+            };
+            ListViewResults.Items.Add(moreItemsListViewItem);
+
+            // Return the Task that will complete when the ListViewItem is clicked
+            return moreItemsTaskCompletionSource.Task;
         }
 
         /// <summary>
@@ -239,7 +261,7 @@ namespace IntelliFind
         private static async Task<Solution> Replace(string findExpression, string replaceExpression, CancellationToken cancellationToken)
         {
             var scriptResult = await ScriptRunner.RunScriptAsync(findExpression, new ScriptGlobals(cancellationToken),  cancellationToken);
-            var nodesAndTokens = RoslynHelpers.GetSyntaxNodesAndTokens(MakeEnumerable(scriptResult).Cast<object>());
+            var nodesAndTokens = RoslynHelpers.GetSyntaxNodesAndTokens(MakeEnumerable(scriptResult));
             var currentSolution = RoslynVisxHelpers.GetWorkspace().CurrentSolution;
             return await currentSolution.ReplaceNodesWithLiteralAsync(nodesAndTokens, replaceExpression, cancellationToken);
         }
@@ -256,8 +278,9 @@ namespace IntelliFind
 
         private void ModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var replace = ModeComboBox.SelectedItem == ReplaceMode;
-            if (replace)
+            if (!IsInitialized) return;
+
+            if (ReplaceMode.IsSelected)
             {
                 MainGrid.RowDefinitions[2].Height = new GridLength(45);
                 MainGrid.RowDefinitions[3].Height = new GridLength(3);

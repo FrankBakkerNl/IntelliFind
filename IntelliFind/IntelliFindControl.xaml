@@ -52,6 +52,7 @@
                 AcceptsReturn="True" 
                 Focusable="True"
                 TextChanged="TextBoxInput_OnTextChanged"
+                SelectionChanged="TextBoxInput_OnSelectionChanged"
                 VerticalScrollBarVisibility="Auto" 
                 FontFamily="Consolas" 
                 FontSize="14"/>

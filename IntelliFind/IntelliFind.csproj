@@ -65,6 +65,7 @@
     <Compile Include="ScriptContext\ScriptGlobals.cs" />
     <Compile Include="ScriptContext\ScriptRunner.cs" />
     <Compile Include="SyntaxNodeOrTokenListItem.cs" />
+    <Compile Include="ThreadPoolAsyncEnumerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

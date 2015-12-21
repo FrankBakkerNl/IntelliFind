@@ -16,8 +16,15 @@ namespace IntelliFind.ScriptContext
     { 
         public static Task<object> RunScriptAsync(string code, object globals, CancellationToken cancellationToken)
         {
-            return CSharpScript.EvaluateAsync(code, ScriptOptions, globals, null, cancellationToken);
+            // Execute the whole script on the thread pool
+            return Task.Run(async () => await CSharpScript.EvaluateAsync(code, ScriptOptions, globals, null, cancellationToken), cancellationToken);
         }
+
+        public static Task<List<Diagnostic>> ValidateScriptAsync(string code, Type globalsType, CancellationToken cancellationToken)
+        {
+            return Task.Run(() => ValidateScript(code, globalsType), cancellationToken);
+        }
+
 
         public static List<Diagnostic> ValidateScript(string code, Type globalsType)
         {
