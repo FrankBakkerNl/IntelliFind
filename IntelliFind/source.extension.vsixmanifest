@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="IntelliFind.Frank Bakker.ff94be72-bd2a-4c4e-b951-63f8d8f97d59" Version="1.0" Language="en-US" Publisher="Frank Bakker" />
+    <Identity Id="IntelliFind.Frank Bakker.ff94be72-bd2a-4c4e-b951-63f8d8f97d59" Version="1.1" Language="en-US" Publisher="Frank Bakker" />
     <DisplayName>IntelliFind</DisplayName>
     <Description xml:space="preserve">This extension allows developers to search a code base using C# script and Roslyn</Description>
+    <MoreInfo>http://blog.frankbakker.net/2015/11/find-code-patterns-using-c-and-roslyn.html</MoreInfo>
     <Icon>Resources\IntelliFindPackage.ico</Icon>
     <PreviewImage>Screenshots\IntelliFind.PNG</PreviewImage>
+    <Tags>find in files; search;</Tags>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[14.0]" />

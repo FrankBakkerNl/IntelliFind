@@ -1,6 +1,7 @@
 ﻿using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 
 namespace IntelliFind
 {
@@ -21,8 +22,10 @@ namespace IntelliFind
 
         protected override void OnMouseDoubleClick(MouseButtonEventArgs e)
         {
-            // set the caret to the position of the diagnostic
-            _codeTextBox.CaretIndex = _diagnostic.Location.SourceSpan.Start;
+            // Select the text that corresponds to the diagnostic
+            var sourceSpan = _diagnostic.Location.SourceSpan;
+            _codeTextBox.Select(sourceSpan.Start, sourceSpan.Length);
+
             _codeTextBox.ScrollToLine(_diagnostic.Location.GetLineSpan().StartLinePosition.Line);
             _codeTextBox.Focus();
             e.Handled = true;
